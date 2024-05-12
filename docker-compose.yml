@@ -1,0 +1,25 @@
+version: "3.7"
+services:
+  user:
+    image: user.main
+    restart: unless-stopped
+    ports:
+      - "4141:8080"
+    depends_on:
+      - maria_db
+    environment:
+      - "SPRING_PROFILES_ACTIVE=dev"
+      - "LOGGING_LEVEL_PMB_USER=INFO"
+      - "SPRING_DATASOURCE_URL=jdbc:mariadb://maria_db:3307/user"
+  maria_db:
+    image: "tobi312/rpi-mariadb:10.11-alpine"
+    restart: unless-stopped
+    volumes:
+      - ./mariadb-data:/var/lib/mysql:rw
+    ports:
+      - "3307:3306"
+    environment:
+      MARIADB_DATABASE: user
+      MYSQL_USER: root
+      MYSQL_PASSWORD: user
+      MARIADB_ROOT_PASSWORD: user

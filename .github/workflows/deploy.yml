@@ -15,4 +15,3 @@ jobs:
       - uses: 69pmb/deploy/workflow/deploy@main
         with:
           url: ${{ secrets.DEPLOY_URL }}
-          args: "WEATHERAPI_APIKEY,${{ secrets.WEATHERAPI_APIKEY }}@WEBPUSH_PUBLICKEY,${{ secrets.WEBPUSH_PUBLICKEY }}@WEBPUSH_PRIVATEKEY,${{ secrets.WEBPUSH_PRIVATEKEY }}"
