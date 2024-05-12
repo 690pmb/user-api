@@ -1,0 +1,17 @@
+server.port: 6363
+spring:
+  datasource:
+    url: jdbc:mariadb://localhost:3307/user
+  jpa:
+    show-sql: true
+    properties.hibernate.format_sql: true
+  liquibase:
+    drop-first: true
+    contexts: local
+
+logging:
+  level:
+    ROOT: INFO
+    pmb.user: DEBUG
+
+jwt.duration: 2592000 # 30j ( -> secondes)
