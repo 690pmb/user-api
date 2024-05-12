@@ -131,9 +131,9 @@
     </dependencies>
 
     <scm>
-        <url>https://github.com/69pmb/user-api/</url>
-        <connection>scm:git:ssh://git@github.com/69pmb/user-api.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/69pmb/user-api.git</developerConnection>
+        <url>https://github.com/690pmb/user-api/</url>
+        <connection>scm:git:ssh://git@github.com/690pmb/user-api.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/690pmb/user-api.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
 
