@@ -1,7 +1,8 @@
-version: "3.7"
+version: "3.9"
 services:
   user:
-    image: user.main
+    image: user-api.main
+    container_name: user-api
     restart: unless-stopped
     ports:
       - "4141:8080"
@@ -14,12 +15,13 @@ services:
   maria_db:
     image: "tobi312/rpi-mariadb:10.11-alpine"
     restart: unless-stopped
+    container_name: user-db
     volumes:
-      - ./mariadb-data:/var/lib/mysql:rw
+      - ./user-mariadb-data:/var/lib/mysql:rw
     ports:
       - "3307:3306"
     environment:
       MARIADB_DATABASE: user
-      MYSQL_USER: root
-      MYSQL_PASSWORD: user
+      MARIADB_USER: root
+      MARIADB_PASSWORD: user
       MARIADB_ROOT_PASSWORD: user
