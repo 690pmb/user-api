@@ -21,7 +21,10 @@ import pmb.user.service.UserService;
 /** User rest controller. */
 @Validated
 @RestController
-@RequestMapping(path = "/users", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+@RequestMapping(
+    path = "/users",
+    consumes = MediaType.APPLICATION_JSON_VALUE,
+    produces = MediaType.APPLICATION_JSON_VALUE)
 public class UserController {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(UserController.class);

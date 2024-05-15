@@ -16,5 +16,4 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 @ActiveProfiles("test")
 @ExtendWith(SpringExtension.class)
 @DisplayNameGeneration(value = ReplaceUnderscores.class)
-public @interface ServiceTestRunner {
-}
+public @interface ServiceTestRunner {}

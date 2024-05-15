@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.apache.commons.lang3.time.DateUtils;
@@ -28,6 +30,7 @@ class JwtTokenProviderTest {
   private static final String SIGNING_KEY = "secretkey";
   private static final String DUMMY_TOKEN = Jwts.builder()
       .setSubject("test")
+      .addClaims(Map.of("apps", "weather,cook", "roles", "admin"))
       .signWith(SignatureAlgorithm.HS512, SIGNING_KEY)
       .compact();
 
@@ -35,9 +38,8 @@ class JwtTokenProviderTest {
 
   @Test
   void create() {
-    UserDto user = new UserDto("test", "pwd");
+    UserDto user = new UserDto("test", "pwd", List.of("weather", "cook"), "admin");
     UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(user, "pwd");
-    Date now = new Date();
 
     String created = jwtTokenProvider.create(token);
 
@@ -45,7 +47,9 @@ class JwtTokenProviderTest {
 
     assertAll(
         () -> assertEquals("test", body.getSubject()),
-        () -> assertTrue(DateUtils.isSameDay(now, body.getIssuedAt())),
+        () -> assertTrue(DateUtils.isSameDay(new Date(), body.getIssuedAt())),
+        () -> assertEquals("weather,cook", body.get("apps")),
+        () -> assertEquals("admin", body.get("roles")),
         () -> assertNotNull(body.getExpiration()),
         () -> assertNotNull(body.get(Claims.ID)));
   }
@@ -64,6 +68,10 @@ class JwtTokenProviderTest {
     assertAll(
         () -> assertEquals("test", user.getUsername()),
         () -> assertNull(user.getPassword()),
+        () -> assertEquals("ROLE_admin", user.getAuthorities().getFirst().toString()),
+        () -> assertEquals("ROLE_admin", user.getRole().toString()),
+        () -> assertEquals(2, user.getApps().size()),
+        () -> user.getApps().forEach(app -> assertTrue(user.getApps().contains(app))),
         () -> assertEquals(DUMMY_TOKEN, authentication.getCredentials()));
   }
 
@@ -102,7 +110,9 @@ class JwtTokenProviderTest {
       SecurityContextHolder.getContext()
           .setAuthentication(
               new UsernamePasswordAuthenticationToken(
-                  new UserDto("test", "pwd"), "pwd"));
+                  new UserDto(
+                      "test", "pwd", List.of("weather"), "admin"),
+                  "pwd"));
 
       Optional<String> result = JwtTokenProvider.getCurrentUserLogin();
 

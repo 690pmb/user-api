@@ -1,8 +1,9 @@
 {
   "info": {
-    "_postman_id": "e15cf7fa-a3a5-4596-afd3-7b7215e714e9",
+    "_postman_id": "adbabb45-dc70-478d-a9cd-478cd198de6d",
     "name": "User",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "15226756"
   },
   "item": [
     {
@@ -33,8 +34,63 @@
         },
         "url": {
           "raw": "{{url}}/users/signin",
-          "host": ["{{url}}"],
-          "path": ["users", "signin"]
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "users",
+            "signin"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Update Password",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.globals.set(\"token\", pm.response.json().token);\r",
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"oldPassword\": \"password\",\r\n    \"newPassword\": \"password2\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/users/password",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "users",
+            "password"
+          ]
         }
       },
       "response": []
@@ -46,7 +102,7 @@
         "header": [],
         "body": {
           "mode": "raw",
-          "raw": "{\r\n    \"username\": \"test\",\r\n    \"password\": \"password\"\r\n}",
+          "raw": "{\r\n    \"username\": \"test2\",\r\n    \"password\": \"password\",\r\n    \"apps\": [\r\n        \"cook\",\r\n        \"weather\"\r\n    ]\r\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -55,8 +111,13 @@
         },
         "url": {
           "raw": "{{url}}/users/signup",
-          "host": ["{{url}}"],
-          "path": ["users", "signup"]
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "users",
+            "signup"
+          ]
         }
       },
       "response": []

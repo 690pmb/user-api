@@ -2,7 +2,6 @@ package pmb.user.service;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,6 +12,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.AfterEach;
@@ -25,6 +26,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -55,7 +57,7 @@ class UserServiceTest {
   @Autowired
   private UserService userService;
 
-  private final UserDto DUMMY_USER = new UserDto("test", "pwd");
+  private final UserDto DUMMY_USER = new UserDto("test", "pwd", List.of("weather", "cook"), "admin");
   private final PasswordDto DUMMY_PASSWORD = new PasswordDto("password", "newPassword");
 
   @AfterEach
@@ -90,6 +92,8 @@ class UserServiceTest {
       assertAll(
           () -> assertNotNull(saved),
           () -> assertEquals("test", saved.getUsername()),
+          () -> assertEquals("admin", saved.getAuthorities().getFirst().toString()),
+          () -> assertEquals(List.of("weather", "cook"), saved.getApps()),
           () -> assertNull(saved.getPassword()),
           () -> assertTrue(saved.isEnabled()),
           () -> assertTrue(saved.isAccountNonLocked()),
@@ -125,7 +129,7 @@ class UserServiceTest {
       assertAll(
           () -> assertEquals("test", captured.getName()),
           () -> assertEquals("pwd", captured.getCredentials()),
-          () -> assertFalse(captured.isAuthenticated()),
+          () -> assertTrue(captured.isAuthenticated()),
           () -> assertNull(SecurityContextHolder.getContext().getAuthentication()));
     }
 
@@ -150,7 +154,8 @@ class UserServiceTest {
           () -> assertEquals("jwt", login.token()),
           () -> assertEquals("test", captured.getName()),
           () -> assertEquals("pwd", captured.getCredentials()),
-          () -> assertFalse(captured.isAuthenticated()),
+          () -> assertTrue(captured.getAuthorities().contains(new SimpleGrantedAuthority("admin"))),
+          () -> assertTrue(captured.isAuthenticated()),
           () -> assertEquals(
               "test", SecurityContextHolder.getContext().getAuthentication().getName()));
     }
@@ -162,7 +167,7 @@ class UserServiceTest {
     @Test
     @WithMockUser(username = "test")
     void ok() {
-      User user = new User("test", "encryptedPassword");
+      User user = new User("test", "encryptedPassword", Collections.emptyList(), null);
       ArgumentCaptor<User> captured = ArgumentCaptor.forClass(User.class);
 
       when(userRepository.findById("test")).thenReturn(Optional.of(user));
@@ -184,7 +189,7 @@ class UserServiceTest {
     }
 
     @Test
-    void not_loggued_then_not_found() {
+    void not_logged_then_not_found() {
       assertThrows(
           UsernameNotFoundException.class, () -> userService.updatePassword(DUMMY_PASSWORD));
 
@@ -211,7 +216,7 @@ class UserServiceTest {
     @Test
     @WithMockUser(username = "test")
     void incorrect_password() {
-      User user = new User("test", "encryptedPassword");
+      User user = new User("test", "encryptedPassword", Collections.emptyList(), "");
 
       when(userRepository.findById("test")).thenReturn(Optional.of(user));
       when(bCryptPasswordEncoder.matches("password", "encryptedPassword")).thenReturn(false);

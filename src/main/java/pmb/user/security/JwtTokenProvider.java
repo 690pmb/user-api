@@ -1,25 +1,28 @@
 package pmb.user.security;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
+import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
-
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jws;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import pmb.user.dto.UserDto;
 
 /** Jwt token utils class. */
@@ -28,6 +31,9 @@ public class JwtTokenProvider {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JwtTokenProvider.class);
 
+  private static final String JWT_APPS_KEY = "apps";
+  private static final String JWT_ROLE_KEY = "roles";
+  private static final String SPRING_ROLE_PREFIX = "ROLE_";
   private final String secretKey;
   private final Integer tokenDuration;
 
@@ -49,6 +55,12 @@ public class JwtTokenProvider {
     UserDto user = (UserDto) authentication.getPrincipal();
     return Jwts.builder()
         .setSubject(user.getUsername())
+        .claim(JWT_APPS_KEY, StringUtils.join(user.getApps(), ","))
+        .claim(
+            JWT_ROLE_KEY,
+            user.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.joining(",")))
         .signWith(SignatureAlgorithm.HS512, secretKey)
         .setId(UUID.randomUUID().toString())
         .setIssuedAt(issuedAt)
@@ -91,12 +103,16 @@ public class JwtTokenProvider {
    */
   public Authentication getAuthentication(String token) {
     Claims claims = parseToken(token).getBody();
+    SimpleGrantedAuthority authority = new SimpleGrantedAuthority(
+        SPRING_ROLE_PREFIX + claims.get(JWT_ROLE_KEY, String.class));
     return new UsernamePasswordAuthenticationToken(
         new UserDto(
             claims.getSubject(),
-            null),
+            null,
+            List.of(claims.get(JWT_APPS_KEY, String.class).split(",")),
+            authority.toString()),
         token,
-        null);
+        List.of(authority));
   }
 
   /**
@@ -110,11 +126,11 @@ public class JwtTokenProvider {
     if (null == authentication) {
       return Optional.empty();
     }
-    if (authentication.getPrincipal() instanceof UserDetails) {
-      return Optional.of(((UserDetails) authentication.getPrincipal()).getUsername());
+    if (authentication.getPrincipal() instanceof UserDetails p) {
+      return Optional.of(p.getUsername());
     }
-    if (authentication.getPrincipal() instanceof String) {
-      return Optional.of((String) authentication.getPrincipal());
+    if (authentication.getPrincipal() instanceof String p) {
+      return Optional.of(p);
     }
     return Optional.empty();
   }
