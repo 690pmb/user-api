@@ -14,7 +14,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -31,21 +30,19 @@ public class ErrorHandler extends ResponseEntityExceptionHandler {
   private static final Logger LOG = LoggerFactory.getLogger(ErrorHandler.class);
 
   @ExceptionHandler
-  public ResponseEntity<Object> handleAlreadyExistException(
-      AlreadyExistException exception, NativeWebRequest request) {
+  public ResponseEntity<Object> handleAlreadyExistException(AlreadyExistException exception) {
     return handleException(exception, HttpStatus.CONFLICT, null, "handleAlreadyExistException");
   }
 
   @ExceptionHandler
-  public ResponseEntity<Object> handleAuthenticationException(
-      AuthenticationException exception, NativeWebRequest request) {
+  public ResponseEntity<Object> handleAuthenticationException(AuthenticationException exception) {
     return handleException(
         exception, HttpStatus.UNAUTHORIZED, null, "handleAuthenticationException");
   }
 
   @ExceptionHandler
   public ResponseEntity<Object> handleMethodArgumentTypeMismatch(
-      MethodArgumentTypeMismatchException ex, WebRequest request) {
+      MethodArgumentTypeMismatchException ex) {
     return handleException(
         ex,
         HttpStatus.BAD_REQUEST,
@@ -55,7 +52,7 @@ public class ErrorHandler extends ResponseEntityExceptionHandler {
 
   @ExceptionHandler
   protected ResponseEntity<Object> handleConstraintViolationException(
-      ConstraintViolationException ex, WebRequest request) {
+      ConstraintViolationException ex) {
     return handleException(
         ex,
         HttpStatus.BAD_REQUEST,

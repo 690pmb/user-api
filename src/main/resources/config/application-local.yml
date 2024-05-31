@@ -13,5 +13,9 @@ logging:
   level:
     ROOT: INFO
     pmb.user: DEBUG
+    org.springframework.security: DEBUG
 
 jwt.duration: 2592000 # 30j ( -> secondes)
+admin:
+  user: admin
+  password: $2y$12$Vt1hN3hypfQpst1vpetqqOhk.GgYFtVOVrcUYIJLqUyyuE.Ljmnc.

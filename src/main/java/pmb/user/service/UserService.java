@@ -4,16 +4,17 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-
 import pmb.user.dto.JwtTokenDto;
 import pmb.user.dto.PasswordDto;
 import pmb.user.dto.UserDto;
 import pmb.user.exception.AlreadyExistException;
 import pmb.user.mapper.UserMapper;
+import pmb.user.model.App;
 import pmb.user.model.User;
 import pmb.user.repository.UserRepository;
 import pmb.user.security.JwtTokenProvider;
@@ -58,7 +59,9 @@ public class UserService {
     User saved = userRepository.save(
         new User(
             user.getUsername(),
-            bCryptPasswordEncoder.encode(user.getPassword())));
+            bCryptPasswordEncoder.encode(user.getPassword()),
+            user.getApps().stream().map(App::new).toList(),
+            userMapper.authoritiesToRole(user.getAuthorities())));
     return userMapper.toDtoWithoutPassword(saved);
   }
 
@@ -69,11 +72,13 @@ public class UserService {
    * @return a jwt token
    */
   public JwtTokenDto login(UserDto user) {
-    UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(user.getUsername(),
-        user.getPassword());
+    UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(
+        user.getUsername(), user.getPassword(), user.getAuthorities());
     Authentication authentication = authenticationManager.authenticate(token);
     JwtTokenDto jwtToken = new JwtTokenDto(jwtTokenProvider.create(authentication));
-    SecurityContextHolder.getContext().setAuthentication(authentication);
+    SecurityContext context = SecurityContextHolder.createEmptyContext();
+    context.setAuthentication(authentication);
+    SecurityContextHolder.setContext(context);
     return jwtToken;
   }
 
@@ -96,7 +101,7 @@ public class UserService {
    *
    * @return {@link User} authenticated
    */
-  public User getCurrentUser() {
+  private User getCurrentUser() {
     return JwtTokenProvider.getCurrentUserLogin()
         .flatMap(userRepository::findById)
         .orElseThrow(() -> new UsernameNotFoundException("User not found"));

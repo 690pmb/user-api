@@ -8,5 +8,7 @@
     <include file="db/changelog/local/002_init_user.xml" relativeToChangelogFile="false"/>
     <include file="db/changelog/003_create_app.xml" relativeToChangelogFile="false"/>
     <include file="db/changelog/local/004_init_app.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/005_create_user_app.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/local/006_init_user_app.xml" relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

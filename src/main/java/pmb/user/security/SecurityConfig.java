@@ -1,79 +1,82 @@
 package pmb.user.security;
 
-import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.Collections;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
-/** Configuring Spring Security */
+import pmb.user.dto.UserDto;
+
+@Configuration
 @EnableWebSecurity
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
+public class SecurityConfig {
+
+  private static final String ADMIN_ROLE = "ADMIN";
 
   private final MyUserDetailsService myUserDetailsService;
   private final JwtTokenProvider jwtTokenProvider;
+  private final String adminUser;
+  private final String adminPassword;
 
   public SecurityConfig(
-      MyUserDetailsService myUserDetailsService, JwtTokenProvider jwtTokenProvider) {
+      MyUserDetailsService myUserDetailsService,
+      JwtTokenProvider jwtTokenProvider,
+      @Value("${admin.user}") String adminUser,
+      @Value("${admin.password}") String adminPassword) {
     this.myUserDetailsService = myUserDetailsService;
     this.jwtTokenProvider = jwtTokenProvider;
+    this.adminUser = adminUser;
+    this.adminPassword = adminPassword;
   }
 
-  /**
-   * Configuring the application authenticationManager.
-   *
-   * @param authenticationManagerBuilder builder
-   * @throws Exception if error
-   */
-  @Autowired
-  public void configureGlobal(AuthenticationManagerBuilder authenticationManagerBuilder)
-      throws Exception {
-    authenticationManagerBuilder
-        .userDetailsService(myUserDetailsService)
-        .passwordEncoder(passwordEncoder());
+  @Bean
+  protected InMemoryUserDetailsManager configureAdminUser() {
+    myUserDetailsService.save(
+        new UserDto(
+            this.adminUser,
+            this.adminPassword,
+            Collections.emptyList(), SecurityConfig.ADMIN_ROLE));
+    return new InMemoryUserDetailsManager(
+        User.builder()
+            .username(this.adminUser)
+            .password(this.adminPassword)
+            .roles(SecurityConfig.ADMIN_ROLE)
+            .build());
   }
 
-  @Override
-  protected void configure(final HttpSecurity http) throws Exception {
-    http.cors()
-        .and()
-        .csrf()
-        .disable()
-        .headers()
-        .frameOptions()
-        .disable()
-        .and()
-        .sessionManagement()
-        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-        .and()
-        .authorizeRequests()
-        .antMatchers("/api-docs*")
-        .permitAll()
-        .antMatchers("/users/signin*")
-        .permitAll()
-        .antMatchers("/users/signup*")
-        .permitAll()
-        .antMatchers("/apps/**")
-        .permitAll()
-        .anyRequest()
-        .authenticated()
-        .and()
-        .exceptionHandling()
-        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
-        .and()
+  @Bean
+  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http.authorizeRequests(
+        authorizeRequests -> authorizeRequests
+            .antMatchers("/api-docs*", "/users/signin*", "/users/signup*")
+            .permitAll()
+            .antMatchers("/apps/**")
+            .hasRole(ADMIN_ROLE)
+            .anyRequest()
+            .authenticated())
+        .csrf(AbstractHttpConfigurer::disable)
+        .sessionManagement(
+            management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .exceptionHandling(
+            handling -> handling.authenticationEntryPoint(
+                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
         .addFilterBefore(
             new JwtTokenFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
+    return http.build();
   }
 
   @Bean
@@ -82,19 +85,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
   }
 
   @Bean
-  public CorsFilter corsFilter() {
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    CorsConfiguration configuration = new CorsConfiguration();
-    configuration.setAllowedOrigins(List.of(CorsConfiguration.ALL));
-    configuration.setAllowedMethods(List.of(CorsConfiguration.ALL));
-    configuration.setAllowedHeaders(List.of(CorsConfiguration.ALL));
-    source.registerCorsConfiguration("/**", configuration);
-    return new CorsFilter(source);
-  }
-
-  @Bean
-  @Override
-  protected AuthenticationManager authenticationManager() throws Exception {
-    return super.authenticationManager();
+  public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
+    AuthenticationManagerBuilder authenticationManagerBuilder = http
+        .getSharedObject(AuthenticationManagerBuilder.class);
+    authenticationManagerBuilder
+        .userDetailsService(myUserDetailsService)
+        .passwordEncoder(passwordEncoder());
+    return authenticationManagerBuilder.build();
   }
 }

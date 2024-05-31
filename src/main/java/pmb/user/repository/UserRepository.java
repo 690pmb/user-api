@@ -10,5 +10,4 @@ import pmb.user.model.User;
  * @see JpaRepository
  */
 @Repository
-public interface UserRepository extends JpaRepository<User, String> {
-}
+public interface UserRepository extends JpaRepository<User, String> {}

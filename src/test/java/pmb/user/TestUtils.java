@@ -2,13 +2,14 @@ package pmb.user;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.common.reflect.ClassPath;
+import com.google.common.reflect.ClassPath.ClassInfo;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -16,22 +17,19 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.ResultActions;
 
-import com.google.common.reflect.ClassPath;
-import com.google.common.reflect.ClassPath.ClassInfo;
-
 @DisplayNameGeneration(value = ReplaceUnderscores.class)
 public final class TestUtils {
 
-  private TestUtils() {
-  }
+  private TestUtils() {}
 
-  public static Function<ResultActions, String> readResponse = result -> {
-    try {
-      return result.andReturn().getResponse().getContentAsString();
-    } catch (UnsupportedEncodingException e) {
-      throw new RuntimeException(e);
-    }
-  };
+  public static Function<ResultActions, String> readResponse =
+      result -> {
+        try {
+          return result.andReturn().getResponse().getContentAsString();
+        } catch (UnsupportedEncodingException e) {
+          throw new RuntimeException(e);
+        }
+      };
 
   private boolean findClass(String className) {
     try {
@@ -46,15 +44,17 @@ public final class TestUtils {
     ClassPath cp = ClassPath.from(ClassLoader.getSystemClassLoader());
     return cp.getTopLevelClassesRecursive(this.getClass().getPackageName()).stream()
         .filter(
-            c -> !c.getName().equals(this.getClass().getName())
-                && StringUtils.endsWith(c.getName(), "Test"));
+            c ->
+                !c.getName().equals(this.getClass().getName())
+                    && StringUtils.endsWith(c.getName(), "Test"));
   }
 
   @Test
   void check_test_locations_and_names() throws IOException {
-    List<ClassInfo> incorrectClass = getTestClasses()
-        .filter(c -> !findClass(StringUtils.substringBeforeLast(c.getName(), "Test")))
-        .collect(Collectors.toList());
+    List<ClassInfo> incorrectClass =
+        getTestClasses()
+            .filter(c -> !findClass(StringUtils.substringBeforeLast(c.getName(), "Test")))
+            .collect(Collectors.toList());
 
     assertTrue(
         incorrectClass.isEmpty(),
@@ -64,10 +64,11 @@ public final class TestUtils {
 
   @Test
   void test_must_not_use_SpringBootTest_annotation() throws IOException {
-    List<Class<?>> incorrectClass = getTestClasses()
-        .map(ClassInfo::load)
-        .filter(test -> test.isAnnotationPresent(SpringBootTest.class))
-        .collect(Collectors.toList());
+    List<Class<?>> incorrectClass =
+        getTestClasses()
+            .map(ClassInfo::load)
+            .filter(test -> test.isAnnotationPresent(SpringBootTest.class))
+            .collect(Collectors.toList());
 
     assertTrue(
         incorrectClass.isEmpty(),

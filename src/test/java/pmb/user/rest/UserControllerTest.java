@@ -1,19 +1,28 @@
 package pmb.user.rest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.Optional;
+import java.util.List;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -21,7 +30,9 @@ import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -29,6 +40,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -42,10 +54,11 @@ import pmb.user.dto.UserDto;
 import pmb.user.exception.AlreadyExistException;
 import pmb.user.security.JwtTokenProvider;
 import pmb.user.security.MyUserDetailsService;
+import pmb.user.security.SecurityConfig;
 import pmb.user.service.UserService;
 
 @ActiveProfiles("test")
-@Import(JwtTokenProvider.class)
+@Import({ JwtTokenProvider.class, SecurityConfig.class })
 @MockBean(MyUserDetailsService.class)
 @WebMvcTest(controllers = UserController.class)
 @DisplayNameGeneration(value = ReplaceUnderscores.class)
@@ -57,7 +70,7 @@ class UserControllerTest {
   private ObjectMapper objectMapper;
   @MockBean
   private UserService userService;
-  private static final UserDto DUMMY_USER = new UserDto("test", "password");
+  private static final UserDto DUMMY_USER = new UserDto("test", "password", List.of("weather", "cook"), null);
   private static final PasswordDto DUMMY_PASSWORD = new PasswordDto("password", "password2");
   private static final JwtTokenDto DUMMY_TOKEN = new JwtTokenDto("jwtToken");
 
@@ -69,16 +82,10 @@ class UserControllerTest {
   @Nested
   class Signin {
 
-    @ParameterizedTest(name = "Given user with login ''{0}'' and password ''{1}'' when login then ok")
-    @CsvSource({
-        "test, password",
-        "o, password",
-        "test, p",
-        "01234567891011121314151617181920, password",
-        "test, 01234567891011121314151617181920,"
-    })
-    void ok(String login, String password) throws Exception {
-      ArgumentCaptor<UserDto> user = ArgumentCaptor.forClass(UserDto.class);
+    @ParameterizedTest(name = "Given valid user #{index} when login then ok")
+    @MethodSource("pmb.user.rest.UserControllerTest$Signin#validUser")
+    void ok(UserDto user) throws Exception {
+      ArgumentCaptor<UserDto> userCaptor = ArgumentCaptor.forClass(UserDto.class);
 
       when(userService.login(any())).thenReturn(DUMMY_TOKEN);
 
@@ -90,35 +97,49 @@ class UserControllerTest {
                       mockMvc
                           .perform(
                               post("/users/signin")
-                                  .content(buildUserJson(login, password))
+                                  .content(objectMapper.writeValueAsString(user))
                                   .contentType(MediaType.APPLICATION_JSON_VALUE))
                           .andExpect(status().isOk())),
                   JwtTokenDto.class)
               .token());
 
-      verify(userService).login(user.capture());
+      verify(userService).login(userCaptor.capture());
 
-      UserDto signin = user.getValue();
+      UserDto signin = userCaptor.getValue();
       assertAll(
-          () -> assertEquals(login, signin.getUsername()),
-          () -> assertEquals(password, signin.getPassword()));
+          () -> assertEquals(user.getUsername(), signin.getUsername()),
+          () -> assertEquals(user.getPassword(), signin.getPassword()),
+          () -> assertTrue(signin.getAuthorities().isEmpty()));
     }
 
-    @ParameterizedTest(name = "Given user with login ''{0}'' and password ''{1}'' when login then bad request")
-    @CsvSource({
-        ", password",
-        "test,",
-    })
-    void when_failed_validation_then_bad_request(String login, String password)
-        throws Exception {
+    @ParameterizedTest(name = "Given invalid user #{index} when login then bad request")
+    @MethodSource("pmb.user.rest.UserControllerTest$Signin#invalidUser")
+    void when_failed_validation_then_bad_request(UserDto user) throws Exception {
       mockMvc
           .perform(
               post("/users/signin")
-                  .content(buildUserJson(login, password))
+                  .content(objectMapper.writeValueAsString(user))
                   .contentType(MediaType.APPLICATION_JSON_VALUE))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$", containsString("Validation failed for argument [0]")))
+          .andExpect(jsonPath("$", not(matchesPattern(".*with [2-9]+ errors.*"))));
 
       verify(userService, never()).login(any());
+    }
+
+    static Stream<Arguments> invalidUser() {
+      return Stream.of(
+          arguments(new UserDto(null, "password", List.of("weather"), null)),
+          arguments(new UserDto("", "password", List.of("weather"), null)),
+          arguments(new UserDto("name", null, null, null)),
+          arguments(new UserDto("name", "", List.of("weather"), null)),
+          arguments(new UserDto("name", "password", List.of(""), "admin")));
+    }
+
+    static Stream<Arguments> validUser() {
+      return Stream.of(arguments(new UserDto("name", "password", List.of("weather"), null)),
+          arguments(new UserDto("name", "pwd", List.of(""), null)),
+          arguments(new UserDto("n", "password", null, null)));
     }
 
     @Test
@@ -128,7 +149,7 @@ class UserControllerTest {
       mockMvc
           .perform(
               post("/users/signin")
-                  .content(buildUserJson(DUMMY_USER))
+                  .content(objectMapper.writeValueAsString(new UserDto("test", "password", null, null)))
                   .contentType(MediaType.APPLICATION_JSON_VALUE))
           .andExpect(status().isUnauthorized());
 
@@ -152,7 +173,7 @@ class UserControllerTest {
                       mockMvc
                           .perform(
                               post("/users/signup")
-                                  .content(buildUserJson(DUMMY_USER))
+                                  .content(objectMapper.writeValueAsString(DUMMY_USER))
                                   .contentType(MediaType.APPLICATION_JSON_VALUE))
                           .andExpect(status().isCreated())),
                   UserDto.class));
@@ -168,33 +189,43 @@ class UserControllerTest {
       mockMvc
           .perform(
               post("/users/signup")
-                  .content(buildUserJson(DUMMY_USER))
+                  .content(objectMapper.writeValueAsString(DUMMY_USER))
                   .contentType(MediaType.APPLICATION_JSON_VALUE))
           .andExpect(status().isConflict());
 
       verify(userService).save(any());
     }
 
-    @ParameterizedTest(name = "Given user with signup ''{0}'' and password ''{1}'' when signup then bad request")
-    @CsvSource({
-        ", password",
-        "o, password",
-        "test,",
-        "test, p",
-        ",",
-        "01234567891011121314151617181920, password",
-        "test, 01234567891011121314151617181920",
-    })
-    void when_invalid_then_bad_request(String login, String password)
+    @ParameterizedTest(name = "Given user with signup ''{0}'', password ''{1}'', apps ''{2}'' when signup then bad request")
+    @MethodSource("pmb.user.rest.UserControllerTest$Signup#invalidUser")
+    void when_invalid_then_bad_request(UserDto user)
         throws Exception {
       mockMvc
           .perform(
               post("/users/signup")
-                  .content(buildUserJson(login, password))
+                  .content(objectMapper.writeValueAsString(user))
                   .contentType(MediaType.APPLICATION_JSON_VALUE))
-          .andExpect(status().isBadRequest());
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$", anyOf(containsString("Validation failed for argument [0]"), matchesPattern(
+              "Field: '.*', Message: '.*'"))))
+          .andExpect(jsonPath("$", not(matchesPattern(".*with [2-9]+ errors.*"))));
 
       verify(userService, never()).save(any());
+    }
+
+    static Stream<Arguments> invalidUser() {
+      return Stream.of(
+          arguments(new UserDto(null, "password", List.of("weather"), null)),
+          arguments(new UserDto("", "password", List.of("weather"), null)),
+          arguments(new UserDto("k", "password", List.of("weather"), null)),
+          arguments(new UserDto("0123456789012345678901234567890", "password", List.of("weather"), null)),
+          arguments(new UserDto("name", null, null, null)),
+          arguments(new UserDto("name", "", List.of("weather"), null)),
+          arguments(new UserDto("name", "ds", List.of("weather"), null)),
+          arguments(new UserDto("name", "0123456789012345678901234567890", List.of("weather"), null)),
+          arguments(new UserDto("name", "password", null, null)),
+          arguments(new UserDto("name", "password", List.of(""), null)),
+          arguments(new UserDto("name", "password", List.of("cook"), "admin")));
     }
 
     @Test
@@ -204,7 +235,7 @@ class UserControllerTest {
       mockMvc
           .perform(
               post("/users/signup")
-                  .content(buildUserJson(DUMMY_USER))
+                  .content(objectMapper.writeValueAsString(DUMMY_USER))
                   .contentType(MediaType.APPLICATION_JSON_VALUE))
           .andExpect(status().isInternalServerError());
 
@@ -230,6 +261,21 @@ class UserControllerTest {
 
       verify(userService).updatePassword(capture.capture());
       assertThat(capture.getValue()).usingRecursiveComparison().isEqualTo(DUMMY_PASSWORD);
+    }
+
+    @Test
+    @WithMockUser
+    void when_notFound_then() throws Exception {
+      doThrow(new UsernameNotFoundException("User not found")).when(userService).updatePassword(any());
+
+      mockMvc
+          .perform(
+              put("/users/password")
+                  .content(objectMapper.writeValueAsString(DUMMY_PASSWORD))
+                  .contentType(MediaType.APPLICATION_JSON_VALUE))
+          .andExpect(status().isUnauthorized());
+
+      verify(userService).updatePassword(any());
     }
 
     @WithMockUser
@@ -266,21 +312,5 @@ class UserControllerTest {
 
       verify(userService, never()).updatePassword(any());
     }
-  }
-
-  public static String buildUserJson(UserDto user) {
-    return buildUserJson(user.getUsername(), user.getPassword());
-  }
-
-  public static String buildUserJson(String login, String password) {
-    return "{\"username\": "
-        + buildField(login)
-        + ",\"password\": "
-        + buildField(password)
-        + "}";
-  }
-
-  private static String buildField(String field) {
-    return Optional.ofNullable(field).map(f -> "\"" + f + "\"").orElse(null);
   }
 }

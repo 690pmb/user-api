@@ -1,10 +1,7 @@
 package pmb.user.repository;
 
-import java.util.Optional;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-
 import pmb.user.model.App;
 
 /**
@@ -13,7 +10,4 @@ import pmb.user.model.App;
  * @see JpaRepository
  */
 @Repository
-public interface AppRepository extends JpaRepository<App, Long> {
-
-    Optional<App> findByName(String name);
-}
+public interface AppRepository extends JpaRepository<App, String> {}

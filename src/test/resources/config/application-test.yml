@@ -1,16 +1,26 @@
 spring:
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: jdbc:h2:mem:weather
+    url: jdbc:h2:mem:user;
     username: sa
     password:
-  liquibase.enabled: false
+  liquibase:
+    drop-first: true
+    contexts: local
+  jpa:
+    show-sql: true
+    properties.hibernate:
+      format_sql: true
 
 jwt:
   secretkey: secretkey
   duration: 2592000
+admin:
+  user: admin
+  password: $2y$12$Vt1hN3hypfQpst1vpetqqOhk.GgYFtVOVrcUYIJLqUyyuE.Ljmnc.
 
 logging:
   level:
     ROOT: INFO
     pmb.user: DEBUG
+    org.springframework.security: DEBUG

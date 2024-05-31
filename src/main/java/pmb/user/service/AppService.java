@@ -1,10 +1,8 @@
 package pmb.user.service;
 
 import org.springframework.stereotype.Service;
-
 import pmb.user.dto.AppDto;
 import pmb.user.exception.AlreadyExistException;
-import pmb.user.mapper.AppMapper;
 import pmb.user.model.App;
 import pmb.user.repository.AppRepository;
 
@@ -13,13 +11,9 @@ import pmb.user.repository.AppRepository;
 public class AppService {
 
   private final AppRepository appRepository;
-  private final AppMapper appMapper;
 
-  public AppService(
-      AppRepository appRepository,
-      AppMapper appMapper) {
+  public AppService(AppRepository appRepository) {
     this.appRepository = appRepository;
-    this.appMapper = appMapper;
   }
 
   /**
@@ -30,21 +24,20 @@ public class AppService {
    */
   public AppDto save(String name) {
     appRepository
-        .findByName(name)
+        .findById(name)
         .ifPresent(
             u -> {
-              throw new AlreadyExistException(
-                  "Application with name '" + name + "' already exist");
+              throw new AlreadyExistException("Application with name '" + name + "' already exist");
             });
-    return appMapper.toDto(appRepository.save(new App(name)));
+    return new AppDto(appRepository.save(new App(name)).getName());
   }
 
   /**
    * Deletes, say nothing if not exist.
    *
-   * @param app app's id to delete
+   * @param name app's name to delete
    */
-  public void delete(Long id) {
-    appRepository.deleteById(id);
+  public void delete(String name) {
+    appRepository.findById(name).ifPresent(appRepository::delete);
   }
 }

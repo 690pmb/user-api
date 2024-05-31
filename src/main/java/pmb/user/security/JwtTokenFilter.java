@@ -10,7 +10,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -35,9 +34,9 @@ public class JwtTokenFilter extends OncePerRequestFilter {
         .filter(t -> t.startsWith(AUTHORIZATION_PREFIX))
         .map(t -> StringUtils.substringAfter(t, AUTHORIZATION_PREFIX))
         .filter(jwtTokenProvider::isValid)
+        .map(jwtTokenProvider::getAuthentication)
         .ifPresent(
-            token -> {
-              Authentication authentication = jwtTokenProvider.getAuthentication(token);
+            authentication -> {
               LOGGER.debug("User '{}' logged", authentication.getName());
               SecurityContextHolder.getContext().setAuthentication(authentication);
             });

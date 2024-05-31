@@ -26,7 +26,9 @@ public class MyUserDetailsService implements UserDetailsService, UserDetailsPass
 
   @Override
   public UserDetails loadUserByUsername(String login) {
-    return userRepository.findById(login).map(userMapper::toDto)
+    return userRepository
+        .findById(login)
+        .map(userMapper::toDto)
         .orElseThrow(() -> new UsernameNotFoundException("user: " + login + " not found"));
   }
 
@@ -35,5 +37,9 @@ public class MyUserDetailsService implements UserDetailsService, UserDetailsPass
     UserDto dto = (UserDto) loadUserByUsername(user.getUsername());
     dto.setPassword(newPassword);
     return userMapper.toDto(userRepository.save(userMapper.toEntity(dto)));
+  }
+
+  public void save(UserDto user) {
+    userRepository.save(userMapper.toEntity(user));
   }
 }

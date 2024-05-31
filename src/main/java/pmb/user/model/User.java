@@ -1,7 +1,12 @@
 package pmb.user.model;
 
+import java.util.ArrayList;
+import java.util.List;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
 import javax.persistence.Table;
 
 /** User database entity. */
@@ -9,38 +14,57 @@ import javax.persistence.Table;
 @Table(name = "user")
 public class User {
 
-    @Id
-    private String login;
+  @Id private String login;
 
-    private String password;
+  private String password;
 
-    public User() {
-    }
+  @ManyToMany
+  @JoinTable(
+      name = "user_app",
+      joinColumns = @JoinColumn(name = "login"),
+      inverseJoinColumns = @JoinColumn(name = "app_name"))
+  private List<App> apps = new ArrayList<>();
 
-    /**
-     * {@link User} constructor.
-     *
-     * @param login    user's name
-     * @param password his password
-     */
-    public User(String login, String password) {
-        this.login = login;
-        this.password = password;
-    }
+  private String role;
 
-    public String getLogin() {
-        return login;
-    }
+  public User() {}
 
-    public void setLogin(String login) {
-        this.login = login;
-    }
+  public User(String login, String password, List<App> apps, String role) {
+    this.login = login;
+    this.password = password;
+    this.apps = apps;
+    this.role = role;
+  }
 
-    public String getPassword() {
-        return password;
-    }
+  public String getLogin() {
+    return login;
+  }
 
-    public void setPassword(String password) {
-        this.password = password;
-    }
+  public void setLogin(String login) {
+    this.login = login;
+  }
+
+  public String getPassword() {
+    return password;
+  }
+
+  public void setPassword(String password) {
+    this.password = password;
+  }
+
+  public List<App> getApps() {
+    return apps;
+  }
+
+  public void setApps(List<App> apps) {
+    this.apps = apps;
+  }
+
+  public String getRole() {
+    return role;
+  }
+
+  public void setRole(String role) {
+    this.role = role;
+  }
 }
